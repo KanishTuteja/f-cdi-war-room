@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>f-cdi Command Center</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@700;800;900&display=swap');
+
+    :root {
+      --bg: #f8fafc;
+      --bg-2: #eef2ff;
+      --bg-3: #fff7ed;
+      --panel: rgba(255, 255, 255, 0.72);
+      --panel-strong: rgba(255, 255, 255, 0.88);
+      --panel-soft: rgba(255, 255, 255, 0.50);
+      --border: rgba(15, 23, 42, 0.10);
+      --border-strong: rgba(15, 23, 42, 0.16);
+      --text: #0f172a;
+      --muted: #64748b;
+      --faint: #94a3b8;
+      --track: rgba(15, 23, 42, 0.08);
+      --input: rgba(255, 255, 255, 0.72);
+      --shadow: rgba(15, 23, 42, 0.12);
+      --orange: #fb923c;
+      --orange-strong: #f97316;
+      --chat-width: clamp(21rem, 30vw, 30rem);
+    }
+
+    [data-theme="midnight"] {
+      --bg: #020617;
+      --bg-2: #0f172a;
+      --bg-3: #111827;
+      --panel: rgba(15, 23, 42, 0.62);
+      --panel-strong: rgba(15, 23, 42, 0.84);
+      --panel-soft: rgba(30, 41, 59, 0.42);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.22);
+      --text: #e5eefc;
+      --muted: #94a3b8;
+      --faint: #64748b;
+      --track: rgba(255, 255, 255, 0.09);
+      --input: rgba(15, 23, 42, 0.78);
+      --shadow: rgba(0, 0, 0, 0.38);
+    }
+
+    * { box-sizing: border-box; }
+    html, body, #root { width: 100vw; height: 100vh; margin: 0; overflow: hidden; }
+    body { overflow-x: hidden; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+    .logo-font { font-family: 'Orbitron', system-ui, sans-serif; letter-spacing: 0.025em; }
+    .inter-font { font-family: 'Inter', system-ui, sans-serif; }
+
+    .app-shell {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: row;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(251, 146, 60, 0.22), transparent 34%),
+        radial-gradient(circle at 82% 18%, rgba(34, 211, 238, 0.18), transparent 36%),
+        radial-gradient(circle at 48% 96%, rgba(192, 132, 252, 0.16), transparent 34%),
+        linear-gradient(135deg, var(--bg), var(--bg-2) 58%, var(--bg-3));
+      transition: background 350ms ease, color 250ms ease;
+    }
+
+    .glass {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      box-shadow: 0 20px 60px -32px var(--shadow);
+      transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease, background-color 220ms ease, color 220ms ease;
+    }
+
+    .glass-strong {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 20px 60px -30px var(--shadow);
+      transition: all 220ms ease;
+    }
+
+    .chat-panel {
+      width: var(--chat-width);
+      max-width: 92vw;
+      height: 100vh;
+      flex: 0 0 var(--chat-width);
+      overflow: hidden;
+      transition: width 320ms cubic-bezier(.4,0,.2,1), flex-basis 320ms cubic-bezier(.4,0,.2,1), opacity 220ms ease, transform 320ms cubic-bezier(.4,0,.2,1);
+      border-right: 1px solid var(--border);
+      background: var(--panel-strong);
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      position: relative;
+      z-index: 30;
+    }
+
+    .chat-panel.closed {
+      width: 0;
+      flex-basis: 0;
+      opacity: 0;
+      transform: translateX(-1rem);
+      border-right-color: transparent;
+    }
+
+    .main-panel {
+      min-width: 0;
+      flex: 1 1 auto;
+      height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .collapse-button {
+      position: fixed;
+      top: 1rem;
+      left: max(0.75rem, calc(var(--chat-width) - 1.15rem));
+      z-index: 60;
+      transition: left 320ms cubic-bezier(.4,0,.2,1), transform 220ms ease, box-shadow 220ms ease, background 220ms ease;
+    }
+
+    .collapse-button.closed { left: 0.75rem; }
+
+    @keyframes neonPulse {
+      0%, 100% { box-shadow: 0 0 0 1px rgba(251,146,60,.75), 0 0 18px rgba(251,146,60,.55), 0 0 42px rgba(251,146,60,.25); }
+      50% { box-shadow: 0 0 0 2px rgba(251,146,60,1), 0 0 34px rgba(251,146,60,.9), 0 0 72px rgba(251,146,60,.45); }
+    }
+
+    .notify-pulse { animation: neonPulse 1.05s ease-in-out infinite; }
+
+    @keyframes dotPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(.72); opacity: .5; }
+    }
+
+    .online-dot { animation: dotPulse 1.5s ease-in-out infinite; }
+
+    .lift-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--border-strong);
+      box-shadow: 0 26px 70px -30px var(--shadow), 0 0 30px -18px rgba(251,146,60,.78);
+    }
+
+    .progress-fill {
+      transition: width 420ms cubic-bezier(.4,0,.2,1), box-shadow 220ms ease, filter 220ms ease;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { width: 0; height: 0; }
+    .thin-scrollbar::-webkit-scrollbar { width: 7px; height: 7px; }
+    .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .thin-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.32); border-radius: 999px; }
+    .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.48); }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+
+    @media (max-width: 760px) {
+      :root { --chat-width: min(92vw, 26rem); }
+      .collapse-button { left: calc(min(92vw, 26rem) - 1.15rem); }
+      .collapse-button.closed { left: .75rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const TEAM_MEMBERS = [
+      { name: 'Rushi', accent: '#22d3ee' },
+      { name: 'Nancy', accent: '#fb7185' },
+      { name: 'Parveen', accent: '#fbbf24' },
+      { name: 'Viren', accent: '#34d399' },
+      { name: 'Aastha', accent: '#c084fc' },
+      { name: 'Kanish', accent: '#fb923c' },
+      { name: 'Devanshi', accent: '#5eead4' },
+      { name: 'Jhanvi', accent: '#e879f9' },
+    ];
+
+    const TASK_POOL = [
+      { id: 'gradFiles', name: 'Grad Files', group: 'File Closing', color: '#f87171' },
+      { id: 'dropFiles', name: 'Drop Files', group: 'File Closing', color: '#fb7185' },
+      { id: 'agreements', name: 'Agreements', group: 'Admissions', color: '#60a5fa' },
+      { id: 'sparAgreement', name: 'SPAR Agreement', group: 'Admissions', color: '#a78bfa' },
+      { id: 'bonusReferrals', name: 'Bonus Referrals', group: 'Finance', color: '#fbbf24' },
+      { id: 'gac', name: 'GAC', group: 'Finance', color: '#34d399' },
+      { id: 'overpayment', name: 'Overpayment', group: 'Finance', color: '#fb7185' },
+      { id: 'advanceStanding', name: 'Advance Standing', group: 'Academics', color: '#22d3ee' },
+      { id: 'midpoints', name: 'Midpoints', group: 'OSAP', color: '#c084fc' },
+      { id: 'firstRelease', name: 'First Release', group: 'OSAP', color: '#4ade80' },
+      { id: 'yr2Releases', name: 'Yr 2 Releases', group: 'OSAP', color: '#f472b6' },
+    ];
+
+    const INITIAL_GOALS = {
+      gradFiles: 140,
+      dropFiles: 70,
+      agreements: 600,
+      sparAgreement: 240,
+      bonusReferrals: 120,
+      gac: 180,
+      overpayment: 90,
+      advanceStanding: 110,
+      midpoints: 220,
+      firstRelease: 320,
+      yr2Releases: 160,
+    };
+
+    const INITIAL_MESSAGES = [
+      { id: 1, author: 'Nancy', text: 'Morning team — I am starting with SPAR today 🔥', time: '9:12 AM', accent: '#fb7185' },
+      { id: 2, author: 'Viren', text: 'GAC batch is ready. Ping me if you need the template.', time: '9:24 AM', accent: '#34d399' },
+      { id: 3, author: 'Aastha', text: 'I can take a few Midpoints after lunch.', time: '10:03 AM', accent: '#c084fc' },
+    ];
+
+    const SIMULATED_MESSAGES = [
+      { author: 'Nancy', text: 'New SPAR update posted. Please check your queue.', accent: '#fb7185' },
+      { author: 'Viren', text: 'GAC file count moved. Need one more person on review.', accent: '#34d399' },
+      { author: 'Parveen', text: 'Agreements batch looks clean so far ✅', accent: '#fbbf24' },
+      { author: 'Rushi', text: 'Grad Files are moving fast. Nice work.', accent: '#22d3ee' },
+    ];
+
+    const EMOJIS = [
+      '😀','😃','😄','😁','😆','😅','😂','🤣','😊','😎','😍','😘','🥰','😉','🙂','🙃','🤩','🥳',
+      '😤','😮‍💨','🤔','🫡','🤝','👏','🙌','👍','👊','💪','🔥','✨','⚡','💯','✅','☑️','📌','📎',
+      '📣','💬','🧠','🎯','🏆','🚀','⏳','⌛','📈','📊','🗂️','📁','📝','💻','🖥️','☕','🍕','🍩',
+      '😭','😴','😵‍💫','🤯','😬','🙏','👀','💡','🔔','🟢','🟠','🔴','⭐','🌟','🎉','🎊','🏁','🧾'
+    ];
+
+    const GIFS = [
+      { label: 'Nice', url: 'https://media.giphy.com/media/111ebonMs90YLu/giphy.gif' },
+      { label: 'Office hype', url: 'https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif' },
+      { label: 'Typing', url: 'https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif' },
+      { label: 'Done', url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif' },
+      { label: 'Teamwork', url: 'https://media.giphy.com/media/3o7abldj0b3rxrZUxW/giphy.gif' },
+      { label: 'Focus', url: 'https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif' },
+      { label: 'Approved', url: 'https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif' },
+      { label: 'Celebration', url: 'https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif' },
+      { label: 'On it', url: 'https://media.giphy.com/media/26gsjCZpPolPr3sBy/giphy.gif' },
+    ];
+
+    function Icon({ children, className = '', style = {} }) {
+      return <span className={`inline-flex items-center justify-center ${className}`} style={style}>{children}</span>;
+    }
+
+    function getTime() {
+      return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function clampNumber(value, min, max) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return 0;
+      return Math.max(min, Math.min(max, Math.round(parsed)));
+    }
+
+    function App() {
+      const [theme, setTheme] = useState('midnight');
+      const [currentUser, setCurrentUser] = useState(null);
+      const [chatOpen, setChatOpen] = useState(true);
+      const [unread, setUnread] = useState(0);
+      const [messages, setMessages] = useState(INITIAL_MESSAGES);
+      const [chatInput, setChatInput] = useState('');
+      const [picker, setPicker] = useState(null);
+      const [draggedTask, setDraggedTask] = useState(null);
+      const [hoveredMember, setHoveredMember] = useState(null);
+      const [editingGoal, setEditingGoal] = useState(null);
+      const [masterGoals, setMasterGoals] = useState(INITIAL_GOALS);
+      const [memberTasks, setMemberTasks] = useState(() => {
+        const starter = {};
+        TEAM_MEMBERS.forEach(member => { starter[member.name] = []; });
+        return starter;
+      });
+
+      const chatEndRef = useRef(null);
+      const messageIndexRef = useRef(0);
+
+      const tasksById = useMemo(() => {
+        return TASK_POOL.reduce((map, task) => ({ ...map, [task.id]: task }), {});
+      }, []);
+
+      const totals = useMemo(() => {
+        const doneByTask = {};
+        TASK_POOL.forEach(task => { doneByTask[task.id] = 0; });
+
+        Object.values(memberTasks).flat().forEach(item => {
+          doneByTask[item.taskId] = (doneByTask[item.taskId] || 0) + Number(item.done || 0);
+        });
+
+        const totalGoal = TASK_POOL.reduce((sum, task) => sum + Number(masterGoals[task.id] || 0), 0);
+        const totalDone = TASK_POOL.reduce((sum, task) => sum + Number(doneByTask[task.id] || 0), 0);
+        const totalPending = Math.max(totalGoal - totalDone, 0);
+        const officeProgress = totalGoal ? Math.min(100, Math.round((totalDone / totalGoal) * 100)) : 0;
+
+        return { doneByTask, totalGoal, totalDone, totalPending, officeProgress };
+      }, [memberTasks, masterGoals]);
+
+      useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+      }, [theme]);
+
+      useEffect(() => {
+        if (chatOpen) {
+          setUnread(0);
+          setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+        }
+      }, [chatOpen, messages]);
+
+      useEffect(() => {
+        const timer = setInterval(() => {
+          if (!chatOpen && currentUser) {
+            const next = SIMULATED_MESSAGES[messageIndexRef.current % SIMULATED_MESSAGES.length];
+            messageIndexRef.current += 1;
+            setMessages(prev => [...prev, { id: Date.now(), ...next, time: getTime(), simulated: true }]);
+            setUnread(prev => prev + 1);
+          }
+        }, 9000);
+
+        return () => clearInterval(timer);
+      }, [chatOpen, currentUser]);
+
+      const currentAccent = TEAM_MEMBERS.find(member => member.name === currentUser)?.accent || '#fb923c';
+
+      const sendMessage = (payload = null) => {
+        if (!currentUser) return;
+        const text = payload?.text ?? chatInput.trim();
+        if (!text && !payload?.gif) return;
+
+        setMessages(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          author: currentUser,
+          text,
+          gif: payload?.gif || null,
+          time: getTime(),
+          accent: currentAccent,
+          own: true,
+        }]);
+        setChatInput('');
+        setPicker(null);
+      };
+
+      const handleDragStart = task => event => {
+        setDraggedTask(task);
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain', task.id);
+      };
+
+      const handleDrop = memberName => event => {
+        event.preventDefault();
+        const task = draggedTask || tasksById[event.dataTransfer.getData('text/plain')];
+        if (!task) return;
+
+        setMemberTasks(prev => {
+          const alreadyAssigned = prev[memberName].some(item => item.taskId === task.id);
+          if (alreadyAssigned) return prev;
+
+          return {
+            ...prev,
+            [memberName]: [
+              ...prev[memberName],
+              { id: `${memberName}-${task.id}-${Date.now()}`, taskId: task.id, done: 0 }
+            ]
+          };
+        });
+
+        setDraggedTask(null);
+        setHoveredMember(null);
+      };
+
+      const updateMemberDone = (memberName, itemId, taskId, rawValue) => {
+        if (memberName !== currentUser) return;
+
+        setMemberTasks(prev => {
+          const currentItem = prev[memberName].find(item => item.id === itemId);
+          const currentValue = Number(currentItem?.done || 0);
+          const doneByOthers = Object.entries(prev).reduce((sum, [name, list]) => {
+            return sum + list.reduce((inner, item) => {
+              if (item.taskId !== taskId) return inner;
+              if (name === memberName && item.id === itemId) return inner;
+              return inner + Number(item.done || 0);
+            }, 0);
+          }, 0);
+          const maxAllowed = Math.max(Number(masterGoals[taskId] || 0) - doneByOthers, 0);
+          const nextValue = clampNumber(rawValue, 0, Math.max(maxAllowed, currentValue));
+
+          return {
+            ...prev,
+            [memberName]: prev[memberName].map(item => (
+              item.id === itemId ? { ...item, done: nextValue } : item
+            ))
+          };
+        });
+      };
+
+      const removeAssignedTask = (memberName, itemId) => {
+        if (memberName !== currentUser) return;
+        setMemberTasks(prev => ({
+          ...prev,
+          [memberName]: prev[memberName].filter(item => item.id !== itemId)
+        }));
+      };
+
+      const updateGoal = (taskId, rawValue) => {
+        const value = Math.max(0, Math.round(Number(rawValue) || 0));
+        setMasterGoals(prev => ({ ...prev, [taskId]: value }));
+      };
+
+      const getMemberStats = memberName => {
+        const items = memberTasks[memberName] || [];
+        const done = items.reduce((sum, item) => sum + Number(item.done || 0), 0);
+        const assignedGoal = items.reduce((sum, item) => sum + Number(masterGoals[item.taskId] || 0), 0);
+        const progress = assignedGoal ? Math.min(100, Math.round((done / assignedGoal) * 100)) : 0;
+        return { done, assignedGoal, progress, count: items.length };
+      };
+
+      if (!currentUser) {
+        return (
+          <div className="app-shell items-center justify-center p-4" data-theme={theme}>
+            <div className="w-full max-w-4xl glass-strong rounded-[2rem] p-6 sm:p-8">
+              <div className="text-center mb-7">
+                <div className="logo-font text-4xl sm:text-6xl font-black tracking-wide">
+                  f<span className="text-orange-400">-</span>cdi
+                </div>
+                <div className="mt-3 text-sm sm:text-base" style={{ color: 'var(--muted)' }}>
+                  Command Center Login
+                </div>
+                <h1 className="mt-7 text-2xl sm:text-3xl font-extrabold">Who are you?</h1>
+                <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
+                  Select your roster name to unlock your own task card.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {TEAM_MEMBERS.map(member => (
+                  <button
+                    key={member.name}
+                    onClick={() => setCurrentUser(member.name)}
+                    className="glass rounded-2xl px-4 py-5 text-left lift-card focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black" style={{ background: `linear-gradient(135deg, ${member.accent}, ${member.accent}99)` }}>
+                        {member.name[0]}
+                      </div>
+                      <div>
+                        <div className="font-bold">{member.name}</div>
+                        <div className="text-xs flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 online-dot"></span>
+                          ready
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="app-shell" data-theme={theme}>
+          <button
+            onClick={() => setChatOpen(prev => !prev)}
+            className={`collapse-button ${chatOpen ? '' : 'closed'} ${!chatOpen && unread > 0 ? 'notify-pulse' : ''} w-10 h-10 rounded-full glass-strong flex items-center justify-center hover:scale-110 active:scale-95`}
+            title={chatOpen ? 'Collapse chat' : 'Open chat'}
+          >
+            <span className="text-lg font-black" style={{ color: unread ? 'var(--orange)' : 'var(--text)' }}>
+              {chatOpen ? '‹' : '›'}
+            </span>
+            {!chatOpen && unread > 0 && (
+              <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-black flex items-center justify-center">
+                {unread}
+              </span>
+            )}
+          </button>
+
+          <aside className={`chat-panel ${chatOpen ? '' : 'closed'}`}>
+            <div className="h-full w-full flex flex-col min-w-0">
+              <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-[0.35em] font-bold" style={{ color: 'var(--muted)' }}>Squad Chat</div>
+                    <div className="font-extrabold text-lg truncate">Office live room</div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold" style={{ color: '#34d399' }}>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 online-dot"></span>
+                    LIVE
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-5 py-3 border-b flex flex-wrap gap-2" style={{ borderColor: 'var(--border)' }}>
+                {TEAM_MEMBERS.map(member => (
+                  <div key={member.name} className="flex items-center gap-1.5 rounded-full px-2 py-1 border" style={{ borderColor: member.name === currentUser ? member.accent : 'var(--border)', background: member.name === currentUser ? `${member.accent}22` : 'var(--panel-soft)' }}>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span className="text-xs font-semibold">{member.name}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar p-4 space-y-3">
+                {messages.map(msg => (
+                  <div key={msg.id} className={`flex gap-2.5 ${msg.own ? 'flex-row-reverse' : ''}`}>
+                    <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-black shrink-0" style={{ background: `linear-gradient(135deg, ${msg.accent}, ${msg.accent}99)` }}>
+                      {msg.author[0]}
+                    </div>
+                    <div className={`min-w-0 max-w-[82%] ${msg.own ? 'text-right' : ''}`}>
+                      <div className={`flex items-center gap-2 mb-1 ${msg.own ? 'justify-end' : ''}`}>
+                        <span className="text-xs font-bold" style={{ color: msg.accent }}>{msg.author}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--faint)' }}>{msg.time}</span>
+                      </div>
+                      <div className="inline-block rounded-2xl px-3 py-2 text-sm border text-left break-words" style={{ borderColor: msg.own ? `${msg.accent}66` : 'var(--border)', background: msg.own ? `${msg.accent}1f` : 'var(--panel-soft)' }}>
+                        {msg.text && <div>{msg.text}</div>}
+                        {msg.gif && <img src={msg.gif} alt="sent gif" className="mt-1 rounded-xl max-w-full w-56 object-cover" />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef}></div>
+              </div>
+
+              <div className="p-4 border-t relative" style={{ borderColor: 'var(--border)' }}>
+                {picker && (
+                  <div className="absolute left-4 right-4 bottom-[4.75rem] glass-strong rounded-3xl p-3 z-50 max-h-80 overflow-y-auto thin-scrollbar">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-xs uppercase tracking-[0.25em] font-black" style={{ color: 'var(--muted)' }}>
+                        {picker === 'emoji' ? 'Emoji Library' : 'GIF Library'}
+                      </div>
+                      <button onClick={() => setPicker(null)} className="w-7 h-7 rounded-full glass hover:scale-105">×</button>
+                    </div>
+
+                    {picker === 'emoji' ? (
+                      <div className="grid grid-cols-8 sm:grid-cols-9 gap-1.5">
+                        {EMOJIS.map((emoji, index) => (
+                          <button key={`${emoji}-${index}`} onClick={() => setChatInput(prev => `${prev}${emoji}`)} className="h-9 rounded-xl text-xl hover:scale-110 hover:bg-white/10 transition">
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {GIFS.map(gif => (
+                          <button key={gif.url} onClick={() => sendMessage({ text: gif.label, gif: gif.url })} className="group rounded-2xl overflow-hidden border hover:scale-[1.02] transition text-left" style={{ borderColor: 'var(--border)' }}>
+                            <img src={gif.url} alt={gif.label} className="w-full h-24 object-cover" />
+                            <div className="px-2 py-1 text-xs font-bold" style={{ background: 'var(--panel-soft)' }}>{gif.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="rounded-3xl border px-2 py-2 flex items-center gap-1.5" style={{ borderColor: 'var(--border)', background: 'var(--input)' }}>
+                  <button onClick={() => setPicker(picker === 'emoji' ? null : 'emoji')} className="w-9 h-9 rounded-full hover:bg-white/10 transition text-lg" title="Emoji">😊</button>
+                  <button onClick={() => setPicker(picker === 'gif' ? null : 'gif')} className="h-9 px-3 rounded-full hover:bg-white/10 transition text-xs font-black tracking-wide" title="GIF">GIF</button>
+                  <input
+                    value={chatInput}
+                    onChange={event => setChatInput(event.target.value)}
+                    onKeyDown={event => event.key === 'Enter' && sendMessage()}
+                    placeholder="Message the team..."
+                    className="flex-1 min-w-0 bg-transparent outline-none text-sm px-1"
+                    style={{ color: 'var(--text)' }}
+                  />
+                  <button onClick={() => sendMessage()} className="w-9 h-9 rounded-full bg-orange-500 hover:bg-orange-400 text-white font-black transition shadow-lg shadow-orange-500/25">➤</button>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <main className="main-panel thin-scrollbar">
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
+              <header className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-orange-400 via-pink-500 to-cyan-400 flex items-center justify-center shadow-2xl shadow-orange-500/20 shrink-0">
+                    <span className="logo-font text-white text-xl font-black">F</span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="logo-font text-4xl sm:text-5xl font-black leading-none truncate">
+                      f<span className="text-orange-400">-</span>cdi
+                    </div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.35em] font-bold" style={{ color: 'var(--muted)' }}>
+                      Command Center
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <div className="glass rounded-2xl px-4 py-2 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 online-dot"></span>
+                    <span className="text-sm font-bold">Logged in as {currentUser}</span>
+                  </div>
+                  <button onClick={() => setTheme(theme === 'midnight' ? 'light' : 'midnight')} className="glass rounded-2xl px-4 py-2 text-sm font-bold hover:scale-105 transition">
+                    {theme === 'midnight' ? '☀️ Light' : '🌙 Midnight'}
+                  </button>
+                  <button onClick={() => setCurrentUser(null)} className="glass rounded-2xl px-4 py-2 text-sm font-bold hover:scale-105 transition">
+                    Switch User
+                  </button>
+                </div>
+              </header>
+
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                <div className="glass rounded-3xl p-4 lift-card">
+                  <div className="text-xs uppercase tracking-[0.25em] font-black" style={{ color: 'var(--muted)' }}>Office Goal</div>
+                  <div className="mt-2 text-3xl font-black">{totals.totalGoal.toLocaleString()}</div>
+                </div>
+                <div className="glass rounded-3xl p-4 lift-card">
+                  <div className="text-xs uppercase tracking-[0.25em] font-black" style={{ color: 'var(--muted)' }}>Completed</div>
+                  <div className="mt-2 text-3xl font-black text-emerald-400">{totals.totalDone.toLocaleString()}</div>
+                </div>
+                <div className="glass rounded-3xl p-4 lift-card">
+                  <div className="text-xs uppercase tracking-[0.25em] font-black" style={{ color: 'var(--muted)' }}>Total Pending</div>
+                  <div className="mt-2 text-3xl font-black text-orange-400">{totals.totalPending.toLocaleString()}</div>
+                </div>
+                <div className="glass rounded-3xl p-4 lift-card">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs uppercase tracking-[0.25em] font-black" style={{ color: 'var(--muted)' }}>Office Progress</div>
+                    <div className="text-xl font-black">{totals.officeProgress}%</div>
+                  </div>
+                  <div className="mt-3 h-3 rounded-full overflow-hidden" style={{ background: 'var(--track)' }}>
+                    <div className="progress-fill h-full rounded-full bg-gradient-to-r from-orange-400 to-emerald-400" style={{ width: `${totals.officeProgress}%`, boxShadow: `0 0 ${10 + totals.officeProgress / 2}px rgba(251,146,60,${0.2 + totals.officeProgress / 150})` }}></div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="glass rounded-[2rem] p-4 sm:p-5 mb-5">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+                  <div>
+                    <h2 className="text-xl font-black">Master Targets</h2>
+                    <p className="text-sm" style={{ color: 'var(--muted)' }}>Edit the office goal. Team Done numbers subtract from this in real time.</p>
+                  </div>
+                  <div className="text-xs uppercase tracking-[0.22em] font-black text-orange-400">File Closing = Grad Files + Drop Files</div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {TASK_POOL.map(task => {
+                    const goal = Number(masterGoals[task.id] || 0);
+                    const done = Number(totals.doneByTask[task.id] || 0);
+                    const pending = Math.max(goal - done, 0);
+                    const percent = goal ? Math.min(100, Math.round((done / goal) * 100)) : 0;
+                    const isFileClosing = task.group === 'File Closing';
+
+                    return (
+                      <div key={task.id} className="rounded-3xl border p-4 transition hover:-translate-y-1" style={{ background: 'var(--panel-soft)', borderColor: isFileClosing ? `${task.color}55` : 'var(--border)' }}>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-[0.24em] font-black" style={{ color: task.color }}>{task.group}</div>
+                            <div className="font-black truncate">{task.name}</div>
+                          </div>
+                          <button onClick={() => setEditingGoal(editingGoal === task.id ? null : task.id)} className="w-8 h-8 rounded-full border hover:scale-105 transition" style={{ borderColor: 'var(--border)' }}>✎</button>
+                        </div>
+
+                        {editingGoal === task.id ? (
+                          <input
+                            type="number"
+                            min="0"
+                            value={goal}
+                            onChange={event => updateGoal(task.id, event.target.value)}
+                            onBlur={() => setEditingGoal(null)}
+                            autoFocus
+                            className="w-full rounded-2xl px-3 py-2 outline-none font-black text-lg border"
+                            style={{ background: 'var(--input)', color: 'var(--text)', borderColor: task.color }}
+                          />
+                        ) : (
+                          <div className="flex items-end justify-between gap-3">
+                            <div>
+                              <div className="text-2xl font-black">{goal.toLocaleString()}</div>
+                              <div className="text-xs" style={{ color: 'var(--muted)' }}>master target</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-black text-orange-400">{pending.toLocaleString()}</div>
+                              <div className="text-xs" style={{ color: 'var(--muted)' }}>pending</div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'var(--track)' }}>
+                          <div className="progress-fill h-full rounded-full" style={{ width: `${percent}%`, background: `linear-gradient(90deg, ${task.color}bb, ${task.color})`, boxShadow: percent ? `0 0 ${8 + percent / 3}px ${task.color}` : 'none' }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="glass rounded-[2rem] p-4 sm:p-5 mb-5">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                  <div>
+                    <h2 className="text-xl font-black">Task Pool</h2>
+                    <p className="text-sm" style={{ color: 'var(--muted)' }}>Drag a task onto a roster card. Cards stay empty until a task is assigned.</p>
+                  </div>
+                  <div className="text-xs uppercase tracking-[0.22em] font-black" style={{ color: 'var(--muted)' }}>{TASK_POOL.length} task types</div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {TASK_POOL.map(task => (
+                    <div
+                      key={task.id}
+                      draggable
+                      onDragStart={handleDragStart(task)}
+                      onDragEnd={() => { setDraggedTask(null); setHoveredMember(null); }}
+                      className="cursor-grab active:cursor-grabbing select-none rounded-full px-4 py-2 border font-bold text-sm transition hover:-translate-y-1 hover:scale-[1.02]"
+                      style={{ background: `${task.color}18`, borderColor: `${task.color}55`, color: task.color, boxShadow: `0 10px 30px -20px ${task.color}` }}
+                    >
+                      <span className="mr-2 opacity-70">⋮⋮</span>{task.name}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-8">
+                {TEAM_MEMBERS.map(member => {
+                  const stats = getMemberStats(member.name);
+                  const isMe = currentUser === member.name;
+                  const isHovered = hoveredMember === member.name;
+                  const glowPower = stats.progress / 100;
+
+                  return (
+                    <div
+                      key={member.name}
+                      onDragOver={event => { event.preventDefault(); setHoveredMember(member.name); }}
+                      onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setHoveredMember(null); }}
+                      onDrop={handleDrop(member.name)}
+                      className="glass rounded-[2rem] overflow-hidden lift-card min-w-0"
+                      style={{
+                        borderColor: isMe ? `${member.accent}88` : isHovered ? member.accent : 'var(--border)',
+                        boxShadow: isMe
+                          ? `0 0 0 1px ${member.accent}44, 0 20px 70px -34px ${member.accent}`
+                          : isHovered
+                            ? `0 0 0 1px ${member.accent}88, 0 25px 75px -32px ${member.accent}`
+                            : undefined
+                      }}
+                    >
+                      <div className="h-1" style={{ background: `linear-gradient(90deg, transparent, ${member.accent}, transparent)` }}></div>
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black shrink-0" style={{ background: `linear-gradient(135deg, ${member.accent}, ${member.accent}99)`, boxShadow: `0 14px 32px -18px ${member.accent}` }}>
+                              {member.name[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-black truncate flex items-center gap-2">
+                                {member.name}
+                                {isMe && <span className="text-[10px] rounded-full px-2 py-0.5 bg-emerald-400/15 text-emerald-400 border border-emerald-400/30">ONLINE</span>}
+                              </div>
+                              <div className="text-xs" style={{ color: 'var(--muted)' }}>{isMe ? 'Editing unlocked' : 'View only'}</div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-2xl font-black" style={{ color: member.accent }}>{stats.progress}%</div>
+                            <div className="text-[10px] uppercase tracking-[0.16em]" style={{ color: 'var(--muted)' }}>Progress</div>
+                          </div>
+                        </div>
+
+                        <div className="h-3 rounded-full overflow-hidden mb-4" style={{ background: 'var(--track)' }}>
+                          <div className="progress-fill h-full rounded-full" style={{
+                            width: `${stats.progress}%`,
+                            background: `linear-gradient(90deg, ${member.accent}aa, ${member.accent})`,
+                            boxShadow: stats.progress ? `0 0 ${10 + stats.progress * 0.55}px ${member.accent}, 0 0 ${18 + stats.progress}px ${member.accent}${Math.round(80 + glowPower * 120).toString(16)}` : 'none',
+                            filter: stats.progress > 75 ? 'saturate(1.25) brightness(1.12)' : 'none'
+                          }}></div>
+                        </div>
+
+                        <div className="rounded-2xl border p-3 mb-4" style={{ borderColor: 'var(--border)', background: 'var(--panel-soft)' }}>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                              <div className="font-black">{stats.count}</div>
+                              <div className="text-[10px]" style={{ color: 'var(--muted)' }}>TASKS</div>
+                            </div>
+                            <div>
+                              <div className="font-black">{stats.done}</div>
+                              <div className="text-[10px]" style={{ color: 'var(--muted)' }}>DONE</div>
+                            </div>
+                            <div>
+                              <div className="font-black">{stats.assignedGoal}</div>
+                              <div className="text-[10px]" style={{ color: 'var(--muted)' }}>GOAL</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 min-h-[8.5rem]">
+                          {memberTasks[member.name].length === 0 ? (
+                            <div className="h-[8.5rem] border-2 border-dashed rounded-3xl flex items-center justify-center text-center px-4 transition" style={{ borderColor: isHovered ? member.accent : 'var(--border)', background: isHovered ? `${member.accent}12` : 'transparent' }}>
+                              <div>
+                                <div className="font-black text-sm" style={{ color: isHovered ? member.accent : 'var(--muted)' }}>{isHovered ? 'DROP TASK HERE' : 'EMPTY ROSTER'}</div>
+                                <div className="text-xs mt-1" style={{ color: 'var(--faint)' }}>No tasks shown until assigned.</div>
+                              </div>
+                            </div>
+                          ) : (
+                            memberTasks[member.name].map(item => {
+                              const task = tasksById[item.taskId];
+                              const goal = Number(masterGoals[item.taskId] || 0);
+                              const taskDone = Number(totals.doneByTask[item.taskId] || 0);
+                              const pending = Math.max(goal - taskDone, 0);
+                              const locked = !isMe;
+
+                              return (
+                                <div key={item.id} className="rounded-3xl border p-3" style={{ background: 'var(--panel-soft)', borderColor: 'var(--border)' }}>
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="min-w-0">
+                                      <div className="font-black text-sm truncate" style={{ color: task.color }}>{task.name}</div>
+                                      <div className="text-[10px]" style={{ color: 'var(--muted)' }}>Office pending: {pending}</div>
+                                    </div>
+                                    {isMe && (
+                                      <button onClick={() => removeAssignedTask(member.name, item.id)} className="w-7 h-7 rounded-full hover:bg-rose-500/15 text-rose-400 transition">×</button>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.done}
+                                      onChange={event => updateMemberDone(member.name, item.id, item.taskId, event.target.value)}
+                                      disabled={locked}
+                                      className="w-full rounded-2xl px-3 py-2 border outline-none font-black"
+                                      placeholder="Done"
+                                      style={{ background: locked ? 'var(--panel-soft)' : 'var(--input)', color: 'var(--text)', borderColor: locked ? 'var(--border)' : task.color, opacity: locked ? .62 : 1 }}
+                                    />
+                                    <span className="text-xs font-bold" style={{ color: 'var(--muted)' }}>done</span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
